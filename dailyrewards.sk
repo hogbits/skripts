@@ -13,11 +13,20 @@
 # &f = White
 # =========================================================
 
+# =========================================================
+# REWARD CLAIM LOGIC
+# - Sequential rewards must be claimed in order.
+# - One claim per cooldown.
+# - Cooldown starts at claim time.
+# - Rewards do not expire.
+# - After all daily rewards claimed, bonus slot grants random basic rewards.
+# =========================================================
+
 options:
     # Menu title
     dailyrewards-menu-title: &5Daily Rewards
     # Cooldown in seconds between rewards claim. Default is 86400 = 24 hours.
-    dailyrewards-cooldown-seconds: 60
+    dailyrewards-cooldown-seconds: 64800 #18 hour cooldown
     # First slot for Day 1 (0-48, because slot 49 is reserved for Close).
     dailyrewards-starting-slot: 9
     # Number of sequential rewards shown in this GUI.
@@ -787,12 +796,3 @@ every 1 second:
 on inventory drag:
     if name of event-inventory is "{@dailyrewards-menu-title}":
         cancel event
-
-# =========================================================
-# REWARD CLAIM LOGIC SUMMARY
-# - Sequential rewards must be claimed in order.
-# - One claim per cooldown.
-# - Cooldown starts at claim time.
-# - Rewards do not expire.
-# - After full completion, bonus slot (after the last reward) grants random basic rewards.
-# =========================================================
