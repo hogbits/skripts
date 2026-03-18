@@ -1,0 +1,798 @@
+# =========================================================
+# Daily Rewards System (Skript 2.12.2, Paper 1.21.11)
+# File: plugins/Skript/scripts/dailyrewards.sk
+# =========================================================
+
+# =========================================================
+# Minecraft Color Codes
+# &0 = Black        &1 = Dark Blue          &2 = Dark Green
+# &3 = Dark Aqua    &4 = Dark Red           &5 = Dark Purple
+# &6 = Gold         &7 = Gray               &8 = Dark Gray
+# &9 = Blue         &a = Green              &b = Aqua
+# &c = Red          &d = Light Purple       &e = Yellow
+# &f = White
+# =========================================================
+
+options:
+    # Menu title
+    dailyrewards-menu-title: &5Daily Rewards
+    # Cooldown in seconds between rewards claim. Default is 86400 = 24 hours.
+    dailyrewards-cooldown-seconds: 60
+    # First slot for Day 1 (0-48, because slot 49 is reserved for Close).
+    dailyrewards-starting-slot: 9
+    # Number of sequential rewards shown in this GUI.
+    # Effective max depends on starting slot because bonus uses the next slot.
+    dailyrewards-total-rewards: 31
+
+# =========================================================
+# CONFIGURATION
+# - Edit values in this section to customize rewards.
+# - Player progress variables are NOT cleared on reload.
+# =========================================================
+
+on script load:
+    clear {dailyrewards.config::*}
+
+    # Dynamic slot mapping:
+    # - Reward 1 starts at configured starting slot
+    # - Rewards fill sequentially
+    # - Bonus slot is immediately after the last reward
+    set {_configuredStart} to {@dailyrewards-starting-slot}
+    if {_configuredStart} < 0:
+        set {_configuredStart} to 0
+    if {_configuredStart} > 48:
+        set {_configuredStart} to 48
+    set {dailyrewards.config.start_slot} to {_configuredStart}
+
+    # Total sequential rewards shown in GUI.
+    # Clamped to fit before slot 49 (close button), while leaving one slot for bonus.
+    set {_maxRewards} to 48 - {_configuredStart}
+    if {_maxRewards} < 1:
+        set {_maxRewards} to 1
+
+    set {_configuredTotal} to {@dailyrewards-total-rewards}
+    if {_configuredTotal} < 1:
+        set {_configuredTotal} to 1
+    if {_configuredTotal} > {_maxRewards}:
+        set {_configuredTotal} to {_maxRewards}
+    set {dailyrewards.config.total_rewards} to {_configuredTotal}
+
+    # -----------------------------
+    # Sequential reward definitions
+    # -----------------------------
+    # Each reward supports:
+    # - name            {dailyrewards.config.name::index::*}
+    # - description     {dailyrewards.config.lore::index::*}
+    # - commands        {dailyrewards.config.commands::index::*}
+
+    loop {_configuredTotal} times:
+        set {_i} to loop-number
+        set {dailyrewards.config.name::%{_i}%} to "&eDay %{_i}% Reward"
+        clear {dailyrewards.config.lore::%{_i}%::*}
+        add "&7Daily login reward for Day %{_i}%." to {dailyrewards.config.lore::%{_i}%::*}
+        clear {dailyrewards.config.commands::%{_i}%::*}
+        add "give %%player%% bread 2" to {dailyrewards.config.commands::%{_i}%::*}
+
+    # Example Reward 
+    # set {dailyrewards.config.name::1} to "&eDay 1 Reward"
+    # clear {dailyrewards.config.lore::1::*}
+    # add "&7Starter food pack." to {dailyrewards.config.lore::1::*}
+    # add "&eClaim this to continue progression." to {dailyrewards.config.lore::1::*}
+    # clear {dailyrewards.config.commands::1::*}
+    # add "give %%player%% bread 8" to {dailyrewards.config.commands::1::*}
+    # add "give %%player%% apple 4" to {dailyrewards.config.commands::1::*}
+    # add "excellentcrates key give %%player%% iron" to {dailyrewards.config.commands::1::*}
+
+    set {dailyrewards.config.name::1} to "&eDay 01 Reward"
+    clear {dailyrewards.config.lore::1::*}
+    add "&716x Oak Logs" to {dailyrewards.config.lore::1::*}
+    add "&78x Steaks" to {dailyrewards.config.lore::1::*}
+    add "" to {dailyrewards.config.lore::1::*}
+    add "&6&lWelcome Bonus" to {dailyrewards.config.lore::1::*}
+    add "&a$200 &7in-game money" to {dailyrewards.config.lore::1::*}
+    clear {dailyrewards.config.commands::1::*}
+    add "give %%player%% oak_log 16" to {dailyrewards.config.commands::1::*}
+    add "give %%player%% cooked_beef 8" to {dailyrewards.config.commands::1::*}
+    add "eco give %%player%% 200" to {dailyrewards.config.commands::1::*}
+
+    # Day 2
+    set {dailyrewards.config.name::2} to "&eDay 2 Reward"
+    clear {dailyrewards.config.lore::2::*}
+    add "&732x Cobblestone" to {dailyrewards.config.lore::2::*}
+    add "&71x Stone Pickaxe" to {dailyrewards.config.lore::2::*}
+    clear {dailyrewards.config.commands::2::*}
+    add "give %%player%% cobblestone 32" to {dailyrewards.config.commands::2::*}
+    add "give %%player%% stone_pickaxe 1" to {dailyrewards.config.commands::2::*}
+
+    # Day 3
+    set {dailyrewards.config.name::3} to "&eDay 3 Reward"
+    clear {dailyrewards.config.lore::3::*}
+    add "&716x Raw Iron" to {dailyrewards.config.lore::3::*}
+    clear {dailyrewards.config.commands::3::*}
+    add "give %%player%% raw_iron 16" to {dailyrewards.config.commands::3::*}
+
+    # Day 4
+    set {dailyrewards.config.name::4} to "&eDay 4 Reward"
+    clear {dailyrewards.config.lore::4::*}
+    add "&716x Wheat Seeds" to {dailyrewards.config.lore::4::*}
+    add "&716x Potatoes" to {dailyrewards.config.lore::4::*}
+    clear {dailyrewards.config.commands::4::*}
+    add "give %%player%% wheat_seeds 16" to {dailyrewards.config.commands::4::*}
+    add "give %%player%% potato 16" to {dailyrewards.config.commands::4::*}
+
+    # Day 5
+    set {dailyrewards.config.name::5} to "&eDay 5 Reward"
+    clear {dailyrewards.config.lore::5::*}
+    add "&78x Gold Ingot" to {dailyrewards.config.lore::5::*}
+    add "&75x Bottle o'' Enchanting" to {dailyrewards.config.lore::5::*}
+    clear {dailyrewards.config.commands::5::*}
+    add "give %%player%% gold_ingot 8" to {dailyrewards.config.commands::5::*}
+    add "give %%player%% experience_bottle 5" to {dailyrewards.config.commands::5::*}
+
+    # Day 6
+    set {dailyrewards.config.name::6} to "&eDay 6 Reward"
+    clear {dailyrewards.config.lore::6::*}
+    add "&71x Bookshelf" to {dailyrewards.config.lore::6::*}
+    clear {dailyrewards.config.commands::6::*}
+    add "give %%player%% bookshelf 1" to {dailyrewards.config.commands::6::*}
+
+    # Day 7
+    set {dailyrewards.config.name::7} to "&eDay 7 Reward"
+    clear {dailyrewards.config.lore::7::*}
+    add "&73x Diamond" to {dailyrewards.config.lore::7::*}
+    add "&716x Lapis Lazuli" to {dailyrewards.config.lore::7::*}
+    add "" to {dailyrewards.config.lore::7::*}
+    add "&6&lWeekly Bonus" to {dailyrewards.config.lore::7::*}
+    add "&b1x Iron Crate Key" to {dailyrewards.config.lore::7::*}
+    clear {dailyrewards.config.commands::7::*}
+    add "give %%player%% diamond 3" to {dailyrewards.config.commands::7::*}
+    add "give %%player%% lapis_lazuli 16" to {dailyrewards.config.commands::7::*}
+    add "excellentcrates key give %%player%% iron" to {dailyrewards.config.commands::7::*}
+
+    # Day 8
+    set {dailyrewards.config.name::8} to "&eDay 8 Reward"
+    clear {dailyrewards.config.lore::8::*}
+    add "&732x Redstone Dust" to {dailyrewards.config.lore::8::*}
+    clear {dailyrewards.config.commands::8::*}
+    add "give %%player%% redstone 32" to {dailyrewards.config.commands::8::*}
+
+    # Day 9
+    set {dailyrewards.config.name::9} to "&eDay 9 Reward"
+    clear {dailyrewards.config.lore::9::*}
+    add "&710x Obsidian" to {dailyrewards.config.lore::9::*}
+    clear {dailyrewards.config.commands::9::*}
+    add "give %%player%% obsidian 10" to {dailyrewards.config.commands::9::*}
+
+    # Day 10
+    set {dailyrewards.config.name::10} to "&eDay 10 Reward"
+    clear {dailyrewards.config.lore::10::*}
+    add "&716x Nether Quartz" to {dailyrewards.config.lore::10::*}
+    add "" to {dailyrewards.config.lore::10::*}
+    add "&6&lBonus Cash" to {dailyrewards.config.lore::10::*}
+    add "&a$1000 &7in-game money" to {dailyrewards.config.lore::10::*}
+    clear {dailyrewards.config.commands::10::*}
+    add "give %%player%% quartz 16" to {dailyrewards.config.commands::10::*}
+    add "eco give %%player%% 1000" to {dailyrewards.config.commands::10::*}
+
+    # Day 11
+    set {dailyrewards.config.name::11} to "&eDay 11 Reward"
+    clear {dailyrewards.config.lore::11::*}
+    add "&71x Saddle" to {dailyrewards.config.lore::11::*}
+    add "&71x Name Tag" to {dailyrewards.config.lore::11::*}
+    clear {dailyrewards.config.commands::11::*}
+    add "give %%player%% saddle 1" to {dailyrewards.config.commands::11::*}
+    add "give %%player%% name_tag 1" to {dailyrewards.config.commands::11::*}
+
+    # Day 12
+    set {dailyrewards.config.name::12} to "&eDay 12 Reward"
+    clear {dailyrewards.config.lore::12::*}
+    add "&74x Blaze Rod" to {dailyrewards.config.lore::12::*}
+    clear {dailyrewards.config.commands::12::*}
+    add "give %%player%% blaze_rod 4" to {dailyrewards.config.commands::12::*}
+
+    # Day 13
+    set {dailyrewards.config.name::13} to "&eDay 13 Reward"
+    clear {dailyrewards.config.lore::13::*}
+    add "&716x Bottle o'' Enchanting" to {dailyrewards.config.lore::13::*}
+    clear {dailyrewards.config.commands::13::*}
+    add "give %%player%% experience_bottle 16" to {dailyrewards.config.commands::13::*}
+
+    # Day 14
+    set {dailyrewards.config.name::14} to "&eDay 14 Reward"
+    clear {dailyrewards.config.lore::14::*}
+    add "&78x Diamonds" to {dailyrewards.config.lore::14::*}
+    add "&71x Enchanted Book (Efficiency III)" to {dailyrewards.config.lore::14::*}
+    add "" to {dailyrewards.config.lore::14::*}
+    add "&6&lCreative Flight" to {dailyrewards.config.lore::14::*}
+    add "&b10 minute fly voucher" to {dailyrewards.config.lore::14::*}
+    clear {dailyrewards.config.commands::14::*}
+    add "give %%player%% diamond 8" to {dailyrewards.config.commands::14::*}
+    add "give %%player%% enchanted_book[stored_enchantments={""efficiency"":3}] 1" to {dailyrewards.config.commands::14::*}
+    #add "give %%player%% enchanted_book of efficiency 3 1" to {dailyrewards.config.commands::14::*}
+    add "flyvoucher give %%player%% basic" to {dailyrewards.config.commands::14::*}
+
+    # Day 15
+    set {dailyrewards.config.name::15} to "&eDay 15 Reward"
+    clear {dailyrewards.config.lore::15::*}
+    add "&71x Ancient Debris" to {dailyrewards.config.lore::15::*}
+    clear {dailyrewards.config.commands::15::*}
+    add "give %%player%% ancient_debris 1" to {dailyrewards.config.commands::15::*}
+
+    # Day 16
+    set {dailyrewards.config.name::16} to "&eDay 16 Reward"
+    clear {dailyrewards.config.lore::16::*}
+    add "&74x Eye of Ender" to {dailyrewards.config.lore::16::*}
+    clear {dailyrewards.config.commands::16::*}
+    add "give %%player%% ender_eye 4" to {dailyrewards.config.commands::16::*}
+
+    # Day 17
+    set {dailyrewards.config.name::17} to "&eDay 17 Reward"
+    clear {dailyrewards.config.lore::17::*}
+    add "&732x End Stone" to {dailyrewards.config.lore::17::*}
+    add "&78x Chorus Fruit" to {dailyrewards.config.lore::17::*}
+    clear {dailyrewards.config.commands::17::*}
+    add "give %%player%% end_stone 32" to {dailyrewards.config.commands::17::*}
+    add "give %%player%% chorus_fruit 8" to {dailyrewards.config.commands::17::*}
+
+    # Day 18
+    set {dailyrewards.config.name::18} to "&eDay 18 Reward"
+    clear {dailyrewards.config.lore::18::*}
+    add "&78x Emerald" to {dailyrewards.config.lore::18::*}
+    add "" to {dailyrewards.config.lore::18::*}
+    add "&6&lSpecial Bonus" to {dailyrewards.config.lore::18::*}
+    add "&a$1500 &7in-game money" to {dailyrewards.config.lore::18::*}
+    clear {dailyrewards.config.commands::18::*}
+    add "give %%player%% emerald 8" to {dailyrewards.config.commands::18::*}
+    add "eco give %%player%% 1500" to {dailyrewards.config.commands::18::*}
+
+    # Day 19
+    set {dailyrewards.config.name::19} to "&eDay 19 Reward"
+    clear {dailyrewards.config.lore::19::*}
+    add "&78x Phantom Membrane" to {dailyrewards.config.lore::19::*}
+    clear {dailyrewards.config.commands::19::*}
+    add "give %%player%% phantom_membrane 8" to {dailyrewards.config.commands::19::*}
+
+    # Day 20
+    set {dailyrewards.config.name::20} to "&eDay 20 Reward"
+    clear {dailyrewards.config.lore::20::*}
+    add "&72x Shulker Shell" to {dailyrewards.config.lore::20::*}
+    clear {dailyrewards.config.commands::20::*}
+    add "give %%player%% shulker_shell 2" to {dailyrewards.config.commands::20::*}
+
+    # Day 21
+    set {dailyrewards.config.name::21} to "&eDay 21 Reward"
+    clear {dailyrewards.config.lore::21::*}
+    add "&71x Netherite Ingot" to {dailyrewards.config.lore::21::*}
+    # add "&716x Lapis Lazuli" to {dailyrewards.config.lore::21::*}
+    add "" to {dailyrewards.config.lore::21::*}
+    add "&6&lCrate Key" to {dailyrewards.config.lore::21::*}
+    add "&b1x Diamond Crate Key" to {dailyrewards.config.lore::21::*}
+    clear {dailyrewards.config.commands::21::*}
+    add "give %%player%% netherite_ingot 1" to {dailyrewards.config.commands::21::*}
+    # add "give %%player%% lapis_lazuli 16" to {dailyrewards.config.commands::21::*}
+    add "excellentcrates key give %%player%% diamond" to {dailyrewards.config.commands::21::*}
+
+    # Day 22
+    set {dailyrewards.config.name::22} to "&eDay 22 Reward"
+    clear {dailyrewards.config.lore::22::*}
+    add "&71x Heart of the Sea" to {dailyrewards.config.lore::22::*}
+    clear {dailyrewards.config.commands::22::*}
+    add "give %%player%% heart_of_the_sea 1" to {dailyrewards.config.commands::22::*}
+
+    # Day 23
+    set {dailyrewards.config.name::23} to "&eDay 23 Reward"
+    clear {dailyrewards.config.lore::23::*}
+    add "&71x Trident" to {dailyrewards.config.lore::23::*}
+    clear {dailyrewards.config.commands::23::*}
+    add "give %%player%% trident 1" to {dailyrewards.config.commands::23::*}
+
+    # Day 24
+    set {dailyrewards.config.name::24} to "&eDay 24 Reward"
+    clear {dailyrewards.config.lore::24::*}
+    add "&71x Wither Skeleton Skull" to {dailyrewards.config.lore::24::*}
+    clear {dailyrewards.config.commands::24::*}
+    add "give %%player%% wither_skeleton_skull 1" to {dailyrewards.config.commands::24::*}
+
+    # Day 25
+    set {dailyrewards.config.name::25} to "&eDay 25 Reward"
+    clear {dailyrewards.config.lore::25::*}
+    add "&71x Nether Star" to {dailyrewards.config.lore::25::*}
+    add "" to {dailyrewards.config.lore::25::*}
+    add "&6&lGetting Rich" to {dailyrewards.config.lore::25::*}
+    add "&a$2000 &7in-game money" to {dailyrewards.config.lore::25::*}
+    clear {dailyrewards.config.commands::25::*}
+    add "give %%player%% nether_star 1" to {dailyrewards.config.commands::25::*}
+    add "eco give %%player%% 2000" to {dailyrewards.config.commands::25::*}
+
+    # Day 26
+    set {dailyrewards.config.name::26} to "&eDay 26 Reward"
+    clear {dailyrewards.config.lore::26::*}
+    add "&71x Music Disc (Pigstep)" to {dailyrewards.config.lore::26::*}
+    clear {dailyrewards.config.commands::26::*}
+    add "give %%player%% music_disc_pigstep 1" to {dailyrewards.config.commands::26::*}
+
+    # Day 27
+    set {dailyrewards.config.name::27} to "&eDay 27 Reward"
+    clear {dailyrewards.config.lore::27::*}
+    add "&716x Diamond" to {dailyrewards.config.lore::27::*}
+    clear {dailyrewards.config.commands::27::*}
+    add "give %%player%% diamond 16" to {dailyrewards.config.commands::27::*}
+
+    # Day 28
+    set {dailyrewards.config.name::28} to "&eDay 28 Reward"
+    clear {dailyrewards.config.lore::28::*}
+    add "&71x Elytra" to {dailyrewards.config.lore::28::*}
+    add "&764x Firework Rocket" to {dailyrewards.config.lore::28::*}
+    clear {dailyrewards.config.commands::28::*}
+    add "give %%player%% elytra 1" to {dailyrewards.config.commands::28::*}
+    add "give %%player%% firework_rocket 64" to {dailyrewards.config.commands::28::*}
+
+    # Day 29
+    set {dailyrewards.config.name::29} to "&eDay 29 Reward"
+    clear {dailyrewards.config.lore::29::*}
+    add "&716x Dragon's Breath" to {dailyrewards.config.lore::29::*}
+    clear {dailyrewards.config.commands::29::*}
+    add "give %%player%% dragon_breath 16" to {dailyrewards.config.commands::29::*}
+
+    # Day 30
+    set {dailyrewards.config.name::30} to "&eDay 30 Reward"
+    clear {dailyrewards.config.lore::30::*}
+    add "&71x Beacon" to {dailyrewards.config.lore::30::*}
+    add "" to {dailyrewards.config.lore::30::*}
+    add "&6&lNetherite Bonus" to {dailyrewards.config.lore::30::*}
+    add "&b3x Netherite Ingot" to {dailyrewards.config.lore::30::*}
+    add "&b1x Netherite key" to {dailyrewards.config.lore::30::*}
+    clear {dailyrewards.config.commands::30::*}
+    add "give %%player%% beacon 1" to {dailyrewards.config.commands::30::*}
+    add "give %%player%% netherite_ingot 1" to {dailyrewards.config.commands::30::*}
+    add "excellentcrates key give %%player%% netherite" to {dailyrewards.config.commands::30::*}
+
+    # Day 31
+    set {dailyrewards.config.name::31} to "&eDay 31 Reward"
+    clear {dailyrewards.config.lore::31::*}
+    add "&71x Dragon Egg" to {dailyrewards.config.lore::31::*}
+    add "&7A symbol of your dedication." to {dailyrewards.config.lore::31::*}
+    add "" to {dailyrewards.config.lore::31::*}
+    add "&6&lGRAND PRIZE" to {dailyrewards.config.lore::31::*}
+    add "&7A custom '&6Legend&7e' Title" to {dailyrewards.config.lore::31::*}
+    add "&7A server-wide announcement" to {dailyrewards.config.lore::31::*}
+    clear {dailyrewards.config.commands::31::*}
+    add "give %%player%% dragon_egg 1" to {dailyrewards.config.commands::31::*}
+    add "lp user %%player%% meta setsuffix ""&6&l Legend&r""" to {dailyrewards.config.commands::31::*}
+    add "broadcast &6Congratulations! &b&l%%player%% &r&6has claimed the GRAND PRIZE and as become a server Legend!" to {dailyrewards.config.commands::31::*}
+
+
+    # --------------------------
+    # Repeatable reward pool (random)
+    # --------------------------
+    # Used after all sequential rewards are completed.
+    
+    # Each reward supports:
+    # - name            {dailyrewards.config.basic.name::1}
+    # - description     {dailyrewards.config.basic.lore::index::*}
+    # - commands        {dailyrewards.config.basic.commands::index::*}
+
+    set {dailyrewards.config.basic.size} to 5
+
+    # Random 1
+    # set {dailyrewards.config.basic.icon::1} to emerald
+    set {dailyrewards.config.basic.name::1} to "&aDaily Reward: Emeralds"
+    clear {dailyrewards.config.basic.lore::1::*}
+    add "&76x Emeralds" to {dailyrewards.config.basic.lore::1::*}
+    clear {dailyrewards.config.basic.commands::1::*}
+    add "give %%player%% emerald 6" to {dailyrewards.config.basic.commands::1::*}
+
+    # Random 2
+    # set {dailyrewards.config.basic.icon::2} to diamond
+    set {dailyrewards.config.basic.name::2} to "&bDaily Reward: Diamonds"
+    clear {dailyrewards.config.basic.lore::2::*}
+    add "&72x Diamonds" to {dailyrewards.config.basic.lore::2::*}
+    clear {dailyrewards.config.basic.commands::2::*}
+    add "give %%player%% diamond 2" to {dailyrewards.config.basic.commands::2::*}
+
+    # Random 3
+    # set {dailyrewards.config.basic.icon::3} to iron ingot
+    set {dailyrewards.config.basic.name::3} to "&fDaily Reward: Iron Pack"
+    clear {dailyrewards.config.basic.lore::3::*}
+    add "&724x Iron Ingots." to {dailyrewards.config.basic.lore::3::*}
+    clear {dailyrewards.config.basic.commands::3::*}
+    add "give %%player%% iron_ingot 24" to {dailyrewards.config.basic.commands::3::*}
+
+    # Random 4
+    # set {dailyrewards.config.basic.icon::4} to tripwire hook
+    set {dailyrewards.config.basic.name::4} to "&eCrate Key"
+    clear {dailyrewards.config.basic.lore::4::*}
+    add "&71x Iron Crate Key" to {dailyrewards.config.basic.lore::4::*}
+    clear {dailyrewards.config.basic.commands::4::*}
+    add "crates key give %%player%% iron 1" to {dailyrewards.config.basic.commands::4::*}
+
+    # Random 5
+    # set {dailyrewards.config.basic.icon::5} to gold ingot
+    set {dailyrewards.config.basic.name::5} to "&6Daily Reward: Gold"
+    clear {dailyrewards.config.basic.lore::5::*}
+    add "&718x Gold Ingots" to {dailyrewards.config.basic.lore::5::*}
+    clear {dailyrewards.config.basic.commands::5::*}
+    add "give %%player%% gold_ingot 18" to {dailyrewards.config.basic.commands::5::*}
+
+    # Random 6
+    set {dailyrewards.config.basic.name::6} to "&7Money Reward"
+    clear {dailyrewards.config.basic.lore::6::*}
+    add ":&a$500 &7In-game money" to {dailyrewards.config.basic.lore::6::*}
+    clear {dailyrewards.config.basic.commands::6::*}
+    add "eco give %%player%% 500" to {dailyrewards.config.basic.commands::6::*}
+
+    # Random 7
+    set {dailyrewards.config.basic.name::7} to "&7Cosmetics Key"
+    clear {dailyrewards.config.basic.lore::7::*}
+    add ":&71x Cosmetics voucher." to {dailyrewards.config.basic.lore::7::*}
+    clear {dailyrewards.config.basic.commands::7::*}
+    add "crazyvouchers give ultracosmetics 1 %%player%%" to {dailyrewards.config.basic.commands::7::*}
+
+    # Random 8
+    set {dailyrewards.config.basic.name::8} to "&7Creative Flight"
+    clear {dailyrewards.config.basic.lore::8::*}
+    add ":&71x 10min fly voucher." to {dailyrewards.config.basic.lore::8::*}
+    clear {dailyrewards.config.basic.commands::8::*}
+    add "crazyvouchers give fly10 1 %%player%%" to {dailyrewards.config.basic.commands::8::*}
+
+# =========================================================
+# VARIABLES (Persistent)
+# {dailyrewards.progress::%player%}   -> current reward index completed
+# {dailyrewards.lastclaim::%player%}  -> timestamp of last claim
+# =========================================================
+
+# =========================================================
+# UTILITY FUNCTIONS
+# =========================================================
+
+function dr_reward_count() :: number:
+    return {dailyrewards.config.total_rewards}
+
+function dr_start_slot() :: number:
+    return {dailyrewards.config.start_slot}
+
+function dr_bonus_slot() :: number:
+    set {_start} to dr_start_slot()
+    set {_count} to dr_reward_count()
+    return {_start} + {_count}
+
+function dr_waited(p: player) :: timespan:
+    if {dailyrewards.lastclaim::%{_p}%} is not set:
+        return 999999 seconds
+    set {_waited} to difference between {dailyrewards.lastclaim::%{_p}%} and now
+    return {_waited}
+
+function dr_can_claim(p: player) :: boolean:
+    if {dailyrewards.lastclaim::%{_p}%} is not set:
+        return true
+    set {_cooldown} to {@dailyrewards-cooldown-seconds} seconds
+    set {_waited} to dr_waited({_p})
+    if {_waited} >= {_cooldown}:
+        return true
+    return false
+
+function dr_time_left(p: player) :: timespan:
+    set {_cooldown} to {@dailyrewards-cooldown-seconds} seconds
+    set {_waited} to dr_waited({_p})
+    set {_remaining} to {_cooldown} - {_waited}
+    if {_remaining} < 0 seconds:
+        return 0 seconds
+    return {_remaining}
+
+function dr_time_left_text(p: player) :: text:
+    set {_remaining} to dr_time_left({_p})
+    set {_totalSeconds} to floor({_remaining} / 1 second)
+    if {_totalSeconds} < 0:
+        set {_totalSeconds} to 0
+
+    set {_hours} to floor({_totalSeconds} / 3600)
+    set {_afterHours} to {_totalSeconds} - ({_hours} * 3600)
+    set {_minutes} to floor({_afterHours} / 60)
+    set {_seconds} to {_afterHours} - ({_minutes} * 60)
+
+    return "%{_hours}% hours, %{_minutes}% minutes, %{_seconds}% seconds."
+
+function dr_claim_reward(p: player, index: number):
+    set {_playerName} to name of {_p}
+    loop {dailyrewards.config.commands::%{_index}%::*}:
+        set {_cmd} to loop-value
+        replace all "%%player%%" in {_cmd} with {_playerName}
+        set {_cmdLower} to lowercase {_cmd}
+        if {_cmdLower} starts with "give ":
+            set {_cmd} to "minecraft:%{_cmd}%"
+        execute console command {_cmd}
+    set {dailyrewards.progress::%{_p}%} to {_index}
+    set {dailyrewards.lastclaim::%{_p}%} to now
+
+function dr_claim_basic_reward(p: player):
+    set {_size} to {dailyrewards.config.basic.size}
+    if {_size} is not set:
+        set {_size} to 1
+    if {_size} < 1:
+        set {_size} to 1
+    set {_pick} to metadata value "dailyrewards.basic.pending" of {_p}
+    if {_pick} is not set:
+        set {_pick} to random integer between 1 and {_size}
+    if {_pick} < 1:
+        set {_pick} to 1
+    if {_pick} > {_size}:
+        set {_pick} to {_size}
+    set {_playerName} to name of {_p}
+    loop {dailyrewards.config.basic.commands::%{_pick}%::*}:
+        set {_cmd} to loop-value
+        replace all "%%player%%" in {_cmd} with {_playerName}
+        set {_cmdLower} to lowercase {_cmd}
+        if {_cmdLower} starts with "give ":
+            set {_cmd} to "minecraft:%{_cmd}%"
+        execute console command {_cmd}
+    delete metadata value "dailyrewards.basic.pending" of {_p}
+    set {dailyrewards.lastclaim::%{_p}%} to now
+
+function dr_render_rewards_gui(p: player):
+
+    # Top filler row (slots 0-8)
+    # loop 9 times:
+    #     set slot (loop-number - 1) of {_p}'s current inventory to gray stained glass pane named " "
+
+    set {_progress} to {dailyrewards.progress::%{_p}%}
+    if {_progress} is not set:
+        set {_progress} to 0
+
+    set {_rewardCount} to dr_reward_count()
+    set {_startSlot} to dr_start_slot()
+    set {_bonusSlot} to dr_bonus_slot()
+    set {_next} to {_progress} + 1
+    set {_claimReady} to dr_can_claim({_p})
+    set {_cooldownText} to dr_time_left_text({_p})
+
+    # Reward slots: start slot + (index - 1)
+    loop {_rewardCount} times:
+        set {_i} to loop-number
+        set {_slot} to {_startSlot} + {_i} - 1
+        set {_rewardName} to {dailyrewards.config.name::%{_i}%}
+        if {_rewardName} is not set:
+            set {_rewardName} to "Day %{_i}% Reward"
+
+        if {_i} <= {_progress}:
+            set {_item} to minecart named "&7%{_rewardName}% - Claimed"
+            set {_lore::*} to {dailyrewards.config.lore::%{_i}%::*}
+            add "" to {_lore::*}
+            add "&aStatus: Claimed" to {_lore::*}
+            set lore of {_item} to {_lore::*}
+            set slot {_slot} of {_p}'s current inventory to {_item}
+
+        else:
+            if {_i} = {_next}:
+                if {_claimReady} is true:
+                    set {_item} to chest minecart named "&a%{_rewardName}% - Claim Now"
+                    #enchant {_item} with unbreaking 1
+                    force {_item} to glint
+                    set {_lore::*} to {dailyrewards.config.lore::%{_i}%::*}
+                    add "" to {_lore::*}
+                    add "&eClick to claim this reward." to {_lore::*}
+                    set lore of {_item} to {_lore::*}
+                    set slot {_slot} of {_p}'s current inventory to {_item}
+                else:
+                    set {_item} to furnace minecart named "&8%{_rewardName}% - Locked"
+                    set {_lore::*} to {dailyrewards.config.lore::%{_i}%::*}
+                    add "" to {_lore::*}
+                    add "&7You can claim your next reward in:" to {_lore::*}
+                    add "&7%{_cooldownText}%" to {_lore::*}
+                    set lore of {_item} to {_lore::*}
+                    set slot {_slot} of {_p}'s current inventory to {_item}
+            else:
+                set {_item} to furnace minecart named "&8%{_rewardName}% - Locked"
+                set {_lore::*} to {dailyrewards.config.lore::%{_i}%::*}
+                add "" to {_lore::*}
+                # add "&7You can claim your next reward in:" to {_lore::*}
+                # add "&7%{_cooldownText}%" to {_lore::*}
+                set lore of {_item} to {_lore::*}
+                set slot {_slot} of {_p}'s current inventory to {_item}
+
+    # Bonus slot behavior (immediately after the final configured reward)
+    set {_bonusSize} to {dailyrewards.config.basic.size}
+    if {_bonusSize} is not set:
+        set {_bonusSize} to 1
+    if {_bonusSize} < 1:
+        set {_bonusSize} to 1
+    set {_bonusPick} to metadata value "dailyrewards.basic.pending" of {_p}
+    if {_bonusPick} is not set:
+        set {_bonusPick} to random integer between 1 and {_bonusSize}
+        set metadata value "dailyrewards.basic.pending" of {_p} to {_bonusPick}
+    if {_bonusPick} < 1:
+        set {_bonusPick} to 1
+        set metadata value "dailyrewards.basic.pending" of {_p} to {_bonusPick}
+    if {_bonusPick} > {_bonusSize}:
+        set {_bonusPick} to {_bonusSize}
+        set metadata value "dailyrewards.basic.pending" of {_p} to {_bonusPick}
+
+    set {_bonusName} to {dailyrewards.config.basic.name::%{_bonusPick}%}
+    if {_bonusName} is not set:
+        set {_bonusName} to "Repeatable Daily Reward"
+    set {_bonusBaseLore::*} to {dailyrewards.config.basic.lore::%{_bonusPick}%::*}
+    if {_bonusBaseLore::*} is not set:
+        set {_bonusBaseLore::*} to "&7Random post-completion reward."
+
+    if {_progress} >= {_rewardCount}:
+        if {_claimReady} is true:
+            set {_bonusItem} to repeater named "&a%{_bonusName}% - Claim"
+            force {_bonusItem} to glint
+            set {_bonusLore::*} to {_bonusBaseLore::*}
+            add "" to {_bonusLore::*}
+            add "&eClick to claim a random daily reward." to {_bonusLore::*}
+            set lore of {_bonusItem} to {_bonusLore::*}
+            set slot {_bonusSlot} of {_p}'s current inventory to {_bonusItem}
+        else:
+            set {_bonusItem} to repeater named "&7Daily reward already claimed. - Locked"
+            # set {_bonusLore::*} to {_bonusBaseLore::*}
+            add "" to {_bonusLore::*}
+            add "&7You can claim your next reward in:" to {_bonusLore::*}
+            add "&7%{_cooldownText}%" to {_bonusLore::*}
+            set lore of {_bonusItem} to {_bonusLore::*}
+            set slot {_bonusSlot} of {_p}'s current inventory to {_bonusItem}
+    else:
+        # set {_bonusItem} to repeater named "&8%{_bonusName}%"
+        set {_bonusItem} to repeater named "&7Repatable Reward - Locked"
+        # set {_bonusLore::*} to {_bonusBaseLore::*}
+        add "" to {_bonusLore::*}
+        add "&7Available after all %{_rewardCount}% rewards claimed." to {_bonusLore::*}
+        set lore of {_bonusItem} to {_bonusLore::*}
+        set slot {_bonusSlot} of {_p}'s current inventory to {_bonusItem}
+
+    # Close button (slot 49)
+    set slot 49 of {_p}'s current inventory to barrier named "&cClose"
+
+function dr_open_rewards_gui(p: player):
+    open chest inventory with 6 rows named "{@dailyrewards-menu-title}" to {_p}
+    dr_render_rewards_gui({_p})
+
+# =========================================================
+# COMMANDS
+# =========================================================
+
+command /rewards [<text>] [<offline player>] [<number>]:
+    trigger:
+        if argument 1 is set:
+            if argument 1 is "reset":
+                if argument 2 is set:
+                    set {_target} to argument 2
+                else:
+                    if player is not set:
+                        send "&cUsage: /rewards reset <player>" to sender
+                        stop
+                    set {_target} to player
+
+                delete {dailyrewards.progress::%{_target}%}
+                delete {dailyrewards.lastclaim::%{_target}%}
+                if {_target} is online:
+                    delete metadata value "dailyrewards.basic.pending" of {_target}
+                send "&aDaily rewards reset for %{_target}%." to sender
+                if {_target} is online:
+                    send "&eYour daily rewards progress has been reset." to {_target}
+                stop
+            else:
+                if argument 1 is "set":
+                    if argument 2 is not set:
+                        send "&cUsage: /rewards set <player> <day>" to sender
+                        stop
+                    if argument 3 is not set:
+                        send "&cUsage: /rewards set <player> <day>" to sender
+                        stop
+
+                    set {_target} to argument 2
+                    set {_day} to argument 3
+                    set {_maxDay} to dr_reward_count()
+
+                    if {_day} < 1:
+                        set {_day} to 1
+                    if {_day} > {_maxDay}:
+                        set {_day} to {_maxDay}
+
+                    set {dailyrewards.progress::%{_target}%} to {_day} - 1
+                    set {dailyrewards.lastclaim::%{_target}%} to now
+                    if {_target} is online:
+                        delete metadata value "dailyrewards.basic.pending" of {_target}
+
+                    send "&aSet %{_target}%'s next claimable reward day to %{_day}%." to sender
+                    if {_target} is online:
+                        send "&eYour next claimable daily reward day was set to %{_day}%." to {_target}
+                    stop
+                else:
+                    send "&cUsage: /rewards, /rewards reset <player>, /rewards set <player> <day>" to sender
+                    stop
+
+        if player is not set:
+            send "&cOnly players can open the rewards GUI." to sender
+            stop
+
+        dr_open_rewards_gui(player)
+
+# =========================================================
+# GUI LOGIC
+# =========================================================
+
+on inventory click:
+    if name of event-inventory is not "{@dailyrewards-menu-title}":
+        stop
+
+    cancel event
+
+    if clicked inventory is not event-inventory:
+        stop
+
+    if event-slot is not set:
+        stop
+
+    set {_slot} to index of event-slot
+
+    if {_slot} is 49:
+        close player's inventory
+        stop
+
+    set {_startSlot} to dr_start_slot()
+    set {_rewardCount} to dr_reward_count()
+    set {_bonusSlot} to dr_bonus_slot()
+
+    if {_slot} < {_startSlot}:
+        stop
+    if {_slot} > {_bonusSlot}:
+        stop
+
+    set {_progress} to {dailyrewards.progress::%player%}
+    if {_progress} is not set:
+        set {_progress} to 0
+
+    # Post-completion basic reward claim (dynamic bonus slot)
+    if {_progress} >= {_rewardCount}:
+        if {_slot} is {_bonusSlot}:
+            if dr_can_claim(player) is true:
+                dr_claim_basic_reward(player)
+                play sound "entity.player.levelup" with volume 1 and pitch 1.2 to player
+                send "&aDaily reward claimed." to player
+                dr_render_rewards_gui(player)
+            else:
+                send "&cYou can claim your next reward in: %dr_time_left_text(player)%" to player
+        stop
+
+    # Sequential reward claim handling
+    set {_clickedIndex} to {_slot} - {_startSlot} + 1
+    set {_nextIndex} to {_progress} + 1
+
+    if {_clickedIndex} <= {_progress}:
+        stop
+
+    if {_clickedIndex} > {_rewardCount}:
+        stop
+
+    if {_clickedIndex} is not {_nextIndex}:
+        stop
+
+    if dr_can_claim(player) is false:
+        send "&cYou can claim your next reward in: %dr_time_left_text(player)%" to player
+        stop
+
+    dr_claim_reward(player, {_clickedIndex})
+    if {_clickedIndex} is {_rewardCount}:
+        play sound "ui.toast.challenge_complete" with volume 1 and pitch 1 to player
+    else:
+        play sound "entity.player.levelup" with volume 1 and pitch 1.2 to player
+    send "&aYou claimed Day %{_clickedIndex}% reward." to player
+    dr_render_rewards_gui(player)
+
+every 1 second:
+    loop all players:
+        if name of loop-player's current inventory is "{@dailyrewards-menu-title}":
+            dr_render_rewards_gui(loop-player)
+
+on inventory drag:
+    if name of event-inventory is "{@dailyrewards-menu-title}":
+        cancel event
+
+# =========================================================
+# REWARD CLAIM LOGIC SUMMARY
+# - Sequential rewards must be claimed in order.
+# - One claim per cooldown.
+# - Cooldown starts at claim time.
+# - Rewards do not expire.
+# - After full completion, bonus slot (after the last reward) grants random basic rewards.
+# =========================================================
