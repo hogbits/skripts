@@ -1,0 +1,285 @@
+# ============================================================
+#  dimension_lock.sk
+#  Blocks world_nether and world_the_end unless the player
+#  holds the matching LuckPerms permission.
+#
+#  Permissions (grant via quest plugin / LuckPerms):
+#  dimlock.access.nether  – unlocks Nether
+#  dimlock.access.end     – unlocks End
+#
+#  Paper 1.21.1 | Skript 2.12.2 | LuckPerms
+# ============================================================
+
+options:
+    overworld:   world2
+    nether:      world2_nether
+    end:         world2_the_end
+
+    perm.nether: dimlock.access.nether
+    perm.end:    dimlock.access.end
+
+    msg.nether: &c&l✖ &cThe Nether is sealed. You must purchase access from the &6&lAdmin Shop &cto unlock it.
+    msg.end:    &c&l✖ &cThe End is sealed. You must purchase access from the &6&lAdmin Shop &cto unlock it.
+    msg.tp:     &c&l✖ &cYou cannot teleport to that dimension — you haven't unlocked it yet.
+    msg.tpa:    &c&l✖ &cThat player is in a dimension you haven't unlocked yet.
+
+# ============================================================
+#  Portal & plugin teleport blocking
+#  "on teleport" covers: nether portals, end portals, AND
+#  plugin-triggered teleports (Essentials /tp, /tpa, etc.)
+#  "teleport cause" tells us WHY the teleport happened.
+#  We only block if the DESTINATION is a locked world.
+# ============================================================
+
+on teleport:
+    # Identify destination world name
+    set {_dest} to name of world of event-location
+
+    # --- Nether ---
+    if {_dest} is "{@nether}":
+        if player does not have permission "{@perm.nether}":
+            cancel event
+            send "{@msg.nether}" to player
+            stop
+
+    # --- End ---
+    if {_dest} is "{@end}":
+        if player does not have permission "{@perm.end}":
+            cancel event
+            send "{@msg.end}" to player
+            stop
+
+# ============================================================
+#  Helper function
+#  Returns true if the named world is locked for this player.
+# ============================================================
+
+function isLocked(p: player, wname: text) :: boolean:
+    if {_wname} is "{@nether}":
+        if {_p} does not have permission "{@perm.nether}":
+            return true
+    if {_wname} is "{@end}":
+        if {_p} does not have permission "{@perm.end}":
+            return true
+    return false
+
+# ============================================================
+#  /tp and /minecraft:tp command interception
+#
+#  In "on command" events, "arguments" is a raw Object list.
+#  Coerce it to a string with "%arguments%" before splitting.
+#  We split on " " to get individual tokens.
+# ============================================================
+
+on command "/tp":
+    if executor is not a player:
+        stop
+    set {_raw} to "%arguments%"
+    if {_raw} is "<none>":
+        stop
+    if {_raw} is "":
+        stop
+    set {_args::*} to {_raw} split by " "
+    set {_argc} to size of {_args::*}
+
+    # /tp <target-player>  →  sender teleports to target
+    if {_argc} is 1:
+        set {_target} to {_args::1} parsed as player
+        if {_target} is set:
+            if isLocked(player, name of world of {_target}) is true:
+                cancel event
+                send "{@msg.tp}" to player
+                stop
+
+    # /tp <player> <target>  →  first player teleports to second
+    if {_argc} is 2:
+        set {_mover}  to {_args::1} parsed as player
+        set {_target} to {_args::2} parsed as player
+        if {_mover} is player:
+            if {_target} is set:
+                if isLocked(player, name of world of {_target}) is true:
+                    cancel event
+                    send "{@msg.tp}" to player
+                    stop
+
+    # /tp ... <worldname>  →  last token may be a world name
+    if {_argc} >= 4:
+        set {_last} to {_args::%{_argc}%}
+        set {_destWorld} to {_last} parsed as world
+        if {_destWorld} is set:
+            if isLocked(player, name of {_destWorld}) is true:
+                cancel event
+                send "{@msg.tp}" to player
+                stop
+
+on command "/minecraft:tp":
+    if executor is not a player:
+        stop
+    set {_raw} to "%arguments%"
+    if {_raw} is "<none>":
+        stop
+    if {_raw} is "":
+        stop
+    set {_args::*} to {_raw} split by " "
+    set {_argc} to size of {_args::*}
+
+    if {_argc} is 1:
+        set {_target} to {_args::1} parsed as player
+        if {_target} is set:
+            if isLocked(player, name of world of {_target}) is true:
+                cancel event
+                send "{@msg.tp}" to player
+                stop
+
+    if {_argc} >= 4:
+        set {_last} to {_args::%{_argc}%}
+        set {_destWorld} to {_last} parsed as world
+        if {_destWorld} is set:
+            if isLocked(player, name of {_destWorld}) is true:
+                cancel event
+                send "{@msg.tp}" to player
+                stop
+
+# ============================================================
+#  Essentials /tpa family
+#
+#  NOTE: Essentials' /tpa, /tpaccept etc. ultimately call
+#  Bukkit's teleport API, so "on teleport" (Section 1) already
+#  catches the actual move. The blocks below add early feedback
+#  so the player is told immediately when they request — before
+#  the other player even gets the accept prompt.
+# ============================================================
+
+# /tpa <player>  — sender wants to go TO target
+on command "/tpa":
+    if executor is not a player:
+        stop
+    set {_raw} to "%arguments%"
+    if {_raw} is "<none>":
+        stop
+    if {_raw} is "":
+        stop
+    set {_args::*} to {_raw} split by " "
+    set {_target} to {_args::1} parsed as player
+    if {_target} is set:
+        if isLocked(player, name of world of {_target}) is true:
+            cancel event
+            send "{@msg.tpa}" to player
+            stop
+        # Store pending request: if accepter uses /tpaccept they come to requester
+        set {dimlock.tpa::%{_target}'s uuid%} to "%player%"
+
+# /tpahere <player>  — target will be pulled to sender's world
+on command "/tpahere":
+    if executor is not a player:
+        stop
+    set {_raw} to "%arguments%"
+    if {_raw} is "<none>":
+        stop
+    if {_raw} is "":
+        stop
+    set {_args::*} to {_raw} split by " "
+    set {_target} to {_args::1} parsed as player
+    if {_target} is set:
+        if isLocked({_target}, name of world of player) is true:
+            cancel event
+            send "&c&l✖ &c%{_target}% hasn't unlocked this dimension yet." to player
+            send "{@msg.tp}" to {_target}
+            stop
+        set {dimlock.tpahere::%{_target}'s uuid%} to "%player%"
+
+# /tpaccept  — player accepts a pending request
+on command "/tpaccept":
+    if executor is not a player:
+        stop
+
+    # /tpa case: accepter travels TO requester
+    set {_name} to {dimlock.tpa::%player's uuid%}
+    if {_name} is set:
+        set {_req} to {_name} parsed as player
+        if {_req} is set:
+            if isLocked(player, name of world of {_req}) is true:
+                cancel event
+                send "{@msg.tpa}" to player
+                delete {dimlock.tpa::%player's uuid%}
+                stop
+        delete {dimlock.tpa::%player's uuid%}
+
+    # /tpahere case: accepter gets pulled to requester's world
+    set {_hname} to {dimlock.tpahere::%player's uuid%}
+    if {_hname} is set:
+        set {_hreq} to {_hname} parsed as player
+        if {_hreq} is set:
+            if isLocked(player, name of world of {_hreq}) is true:
+                cancel event
+                send "{@msg.tp}" to player
+                delete {dimlock.tpahere::%player's uuid%}
+                stop
+        delete {dimlock.tpahere::%player's uuid%}
+
+# /tphere <player>  — op immediately summons someone
+on command "/tphere":
+    if executor is not a player:
+        stop
+    set {_raw} to "%arguments%"
+    if {_raw} is "<none>":
+        stop
+    if {_raw} is "":
+        stop
+    set {_args::*} to {_raw} split by " "
+    set {_target} to {_args::1} parsed as player
+    if {_target} is set:
+        if isLocked({_target}, name of world of player) is true:
+            cancel event
+            send "&c&l✖ &c%{_target}% hasn't unlocked this dimension yet." to player
+            send "{@msg.tp}" to {_target}
+            stop
+
+# ============================================================
+#  Admin commands
+#  /dimlock give <player> nether|end
+#  /dimlock revoke <player> nether|end
+#  Requires: dimlock.admin permission
+# ============================================================
+
+command /dimlock <text> <offline player> <text>:
+    permission: dimlock.admin
+    permission message: &cYou don't have permission to use this command.
+    trigger:
+        set {_action} to arg-1
+        set {_target} to arg-2
+        set {_dim}    to arg-3
+
+        if {_dim} is "nether":
+            set {_perm} to "{@perm.nether}"
+        else if {_dim} is "end":
+            set {_perm} to "{@perm.end}"
+        else:
+            send "&cUsage: /dimlock give|revoke <player> nether|end" to sender
+            stop
+
+        if {_action} is "give":
+            execute console command "lp user %{_target}% permission set %{_perm}% true"
+            send "&aGranted &e%{_dim}% &aaccess to &e%{_target}%&a." to sender
+            if {_target} is online:
+                send "&a&l✔ &aYou've unlocked access to the &e%{_dim}%&a!" to {_target}
+
+        else if {_action} is "revoke":
+            execute console command "lp user %{_target}% permission unset %{_perm}%"
+            send "&cRevoked &e%{_dim}% &caccess from &e%{_target}%&c." to sender
+            if {_target} is online:
+                send "&c&l✖ &cYour &e%{_dim}% &caccess has been revoked." to {_target}
+
+        else:
+            send "&cUsage: /dimlock give|revoke <player> nether|end" to sender
+
+# ============================================================
+#  Respawn safety
+#  If a player without permission somehow ends up in the End
+#  and dies there, send them home instead of to the End spawn.
+# ============================================================
+
+on respawn:
+    if name of world of player is "{@end}":
+        if player does not have permission "{@perm.end}":
+            set respawn location to spawn of world "{@overworld}"
