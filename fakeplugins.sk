@@ -1,0 +1,37 @@
+# ================================
+# Fake Plugins List Skript
+# Compatible with Skript 2.12.2
+# Paper 1.21.11
+# ================================
+
+options:
+    #fakeplugins-message: &c🧿 I'm sorry %player%, I'm afraid I can't show that.
+    fakeplugins-message: &aAntiCheater&r, &aAgroMobsPremium&r, &aChatColorizor&r, &aCMILib&r, &aDuelingBanjos&r, &aDeluxPVP&r, &aEssentialZ&r, &aFancyRockets&r, &aFlooded&r, &aFreiferNoMore&r, &aJustJobs&r, &aLook-no-perms&r, &aPlayerAPI&r, &aXenuMap&r,  
+
+on command:
+    # Handle /plugins
+    if command label is "plugins":
+        
+        if sender is not a player:
+            stop
+        
+        if player has permission "fakeplugin.bypass":
+            stop
+        
+        cancel event
+        send colored "{@fakeplugins-message}" to player
+        stop
+
+    # Handle /pl
+    if command label is "pl":
+        
+        if sender is not a player:
+            stop
+        
+        if player has permission "fakeplugin.bypass":
+            stop
+        
+        cancel event
+        send colored "{@fakeplugins-message}" to player
+        stop
+        
